@@ -1,4 +1,6 @@
 #import libraries
+
+
 import numpy as np 
 import numpy.typing as npt
 
@@ -13,9 +15,23 @@ def generate_scores(rng: np.random.Generator, n_students:int,subject_means:npt.N
     Generate random scores for students in different subjects.
     """
     scores = rng.normal(loc=subject_means,scale=std,size=(n_students   ,len(subject_means))) # (30,5)
-    clip_scores = np.clip(scores,0,100).round(1)# (30,5)
+    clip_scores = np.clip(scores,0,100).round()# (30,5)
     
     return clip_scores
+
+
+def inject_missing_values(scores: npt.NDArray[np.float64], n_missing:int,rng:np.random.Generator) -> npt.NDArray[np.float64]:
+    """
+    Inject missing values into the scores array.
+    """
+    
+
+    missing_indices = rng.choice(scores.size, size=n_missing, replace=False)
+    print(missing_indices)        # temporary
+    print(missing_indices.shape)  # temporary
+    result=scores.copy() 
+ 
+    return result
 
 
 def main():
@@ -23,12 +39,18 @@ def main():
     subject_means = np.array([60, 55, 65, 70, 75])
 
     rng=np.random.default_rng(42)
-    scores = generate_scores(rng=rng,n_students=N_STUDENTS,subject_means=subject_means)
-    shape_scores= scores.shape
-    print(f"Shape of scores : {shape_scores}")
-    type_scores=scores.dtype
-    print(f"Type of scores : {type_scores}")
-    print(scores[:3])
+
+    scores_full = generate_scores(rng=rng,n_students=N_STUDENTS,subject_means=subject_means)
+    
+
+    n_missing=rng.integers(1,10)
+
+    
+    
+
+    scores=inject_missing_values(scores_full,n_missing,rng)
+
+    
 
 
 
