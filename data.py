@@ -1,6 +1,4 @@
 #import libraries
-
-
 import numpy as np 
 import numpy.typing as npt
 
@@ -27,10 +25,16 @@ def inject_missing_values(scores: npt.NDArray[np.float64], n_missing:int,rng:np.
     
 
     missing_indices = rng.choice(scores.size, size=n_missing, replace=False)
-    print(missing_indices)        # temporary
-    print(missing_indices.shape)  # temporary
+
+
+    # Get the 2D indices corresponding to the flattened indices
+    missing_positions = np.unravel_index(missing_indices, scores.shape)
+
+
     result=scores.copy() 
- 
+    # Inject missing values (NaN) at the selected positions
+    result[missing_positions] = np.nan
+
     return result
 
 
@@ -42,20 +46,19 @@ def main():
 
     scores_full = generate_scores(rng=rng,n_students=N_STUDENTS,subject_means=subject_means)
     
-
     n_missing=rng.integers(1,10)
 
-    
-    
-
     scores=inject_missing_values(scores_full,n_missing,rng)
-
-    
-
-
+    print(f"NaNs in scores:{np.isnan(scores).sum()}")  # Count of NaN values in scores
+    print(f"NaNs in scores_full:{np.isnan(scores_full).sum()}")  # Count of NaN values in scores_full
+    print(f"NaN is Subjects :{np.isnan(scores).sum(axis=0)}")  # Subjects with NaN values
 
 if __name__=="__main__":
     main()
 
-    
+
+
+
+
+
 
