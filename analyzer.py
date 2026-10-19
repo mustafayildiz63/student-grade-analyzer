@@ -101,13 +101,13 @@ def main():
         index=["mean","std","max","min"]
     )
 
-    print("*"*40 + "task-1" + "*"*40)
+  
     print(description_table)
     print("*"*100)
     print(data.describe())
 
 
-    #  Task 2 
+
 
     change_12 = X[: , G2] - X[: , G1]
    
@@ -120,7 +120,7 @@ def main():
         print(f"{name} : mean: {change.mean()} | improved most :  {change.argmax()} | dropped most : {change.argmin()} |  same: {change[ change == 0 ].size} ")
 
 
-    #  Task 3
+    
     Y = X[:,G3]
     mask = (Y == 0)
     g3_zeros=mask.sum()
@@ -133,7 +133,7 @@ def main():
     print(X[idx, G2])      # their G2 grades
 
 
-    # task 4
+    
     unique_studytimes = np.unique(X[:,STUDYTIME])
     for st in unique_studytimes:
         mask = (X[:,STUDYTIME] == st)
@@ -154,7 +154,7 @@ def main():
     failures_at_least_one_mean = X[mask2,G3].mean()
     print(failures_at_least_one_mean)
 
-    # Task 5
+    
 
     highest_G3=X[:,G3].max()
     highest_indices=np.where(X[:,G3] == highest_G3)[0]
