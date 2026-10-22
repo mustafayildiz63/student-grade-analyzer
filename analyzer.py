@@ -1,10 +1,6 @@
-#import libraries
 import numpy as np 
 import numpy.typing as npt
-import pandas as pd 
 from data import load_data
-# Constants
-
 
 
 def validate_scores(
@@ -14,46 +10,25 @@ def validate_scores(
     high: float | npt.NDArray = 20.0,
 ) -> None:
     """Validate numeric data using configurable column limits."""
-
     if scores.ndim != 2:
-        raise ValueError(
-            f"Expected 2D array, got {scores.ndim}D."
-        )
+        raise ValueError(f"Expected 2D array, got {scores.ndim}D.")
 
     if not np.issubdtype(scores.dtype, np.floating):
-        raise ValueError(
-            f"Expected floating dtype, got {scores.dtype}."
-        )
+        raise ValueError(f"Expected floating dtype, got {scores.dtype}.")
 
     if scores.shape[1] != n_subjects:
-        raise ValueError(
-            f"Expected {n_subjects} columns, got {scores.shape[1]}."
-        )
+        raise ValueError(f"Expected {n_subjects} columns, got {scores.shape[1]}.")
 
     lower = np.asarray(low, dtype=np.float64)
     upper = np.asarray(high, dtype=np.float64)
 
-    # Each bound must be a scalar or one value per column.
-    allowed_shapes = ((), (n_subjects,))
+    if lower.shape not in ((), (n_subjects,)) or upper.shape not in ((), (n_subjects,)):
+        raise ValueError("Invalid shape for validation bounds.")
 
-    if lower.shape not in allowed_shapes:
-        raise ValueError("Invalid shape for lower bounds.")
-
-    if upper.shape not in allowed_shapes:
-        raise ValueError("Invalid shape for upper bounds.")
-
-    if (
-        not np.all(np.isfinite(lower))
-        or not np.all(np.isfinite(upper))
-        or not np.all(lower <= upper)
-    ):
+    if not np.all(np.isfinite(lower)) or not np.all(np.isfinite(upper)) or not np.all(lower <= upper):
         raise ValueError("Invalid validation bounds.")
 
-    valid = np.isnan(scores) | (
-        np.isfinite(scores)
-        & (scores >= lower)
-        & (scores <= upper)
-    )
+    valid = np.isnan(scores) | (np.isfinite(scores) & (scores >= lower) & (scores <= upper))
 
     if not np.all(valid):
         count = np.count_nonzero(~valid)
@@ -61,120 +36,74 @@ def validate_scores(
 
 
 def main():
-    """Main function to generate and display student scores."""
-
+    """Load, validate, and analyze student data."""
     data = load_data()
 
-    columns = [
-        "G1", "G2", "G3",
-        "studytime", "failures", "absences"
-    ]
- 
+    columns = ["G1", "G2", "G3", "studytime", "failures", "absences"]
     X = data[columns].to_numpy(dtype=np.float64)
+
+    # Validate inputs
     low = np.array([0, 0, 0, 1, 0, 0])
     high = np.array([20, 20, 20, 4, 4, 93])
-    validate_scores(
-        scores=X,
-        n_subjects=len(columns),
-        low=low,
-        high=high
-    )
+    validate_scores(scores=X, n_subjects=len(columns), low=low, high=high)
+    print("Validation passed!\n" + "="*50)
 
-    print("Validation passed!")
+    # Column mappings
     G1, G2, G3, STUDYTIME, FAILURES, ABSENCES = range(6)
+    total_students = X.shape[0]
+    print(f"Total students: {total_students}")
 
-    mean_X=X.mean(axis=0)
-    std_X=X.std(axis=0)
-    min_X=X.min(axis=0)
-    max_X=X.max(axis=0)
+    # --- M4 Task 1: Academic Groupings ---
+    zero_grade = X[:, G3] == 0
+    nonzero_failure = (X[:, G3] > 0) & (X[:, G3] < 10)
+    passed = X[:, G3] >= 10
 
-    data_new=[
-        mean_X,
-        std_X,
-        max_X,
-        min_X
-    ]
+    total_zero = zero_grade.sum()
+    total_nonzero_fail = nonzero_failure.sum()
+    total_passed = passed.sum()
 
-    description_table=pd.DataFrame(
-        data=data_new,
-        columns=columns,
-        index=["mean","std","max","min"]
-    )
+    print(f"Zero final grades       : {total_zero}")
+    print(f"Nonzero failing grades  : {total_nonzero_fail}")
+    print(f"Passing grades          : {total_passed}")
 
-  
-    print(description_table)
-    print("*"*100)
-    print(data.describe())
+    # Overlap and integrity checks
+    assert total_zero + total_nonzero_fail + total_passed == total_students
+    assert not np.any(zero_grade & nonzero_failure), "Overlap between zero and nonzero failure!"
+    assert not np.any(zero_grade & passed), "Overlap between zero and passed!"
+    assert not np.any(nonzero_failure & passed), "Overlap between nonzero failure and passed!"
 
-
-
-
-    change_12 = X[: , G2] - X[: , G1]
-   
-    change_23= X[: , G3] - X[: , G2]
-
-
-    changes = [("G1→G2", change_12), ("G2→G3", change_23)]
-    for name, change in changes:
-
-        print(f"{name} : mean: {change.mean()} | improved most :  {change.argmax()} | dropped most : {change.argmin()} |  same: {change[ change == 0 ].size} ")
-
-
+    # --- M4 Task 2: Scenario Analysis ---
+    print("\n" + "="*20 + " Scenario Analysis " + "="*20)
     
-    Y = X[:,G3]
-    mask = (Y == 0)
-    g3_zeros=mask.sum()
-    print(g3_zeros) #There are 38 zeros they may include student did not enter the exam
+    # Scenario A: Including zeros
+    failure_rate_a = ((total_zero + total_nonzero_fail) / total_students) * 100
+    print(f"Scenario A (Includes Zeros) Failure Rate : {failure_rate_a:.2f}%")
 
-    idx=idx = np.flatnonzero(mask)
-    print(len(idx))
+    # Scenario B: Excluding zeros
+    students_excluding_zeros = total_students - total_zero
+    failure_rate_b = (total_nonzero_fail / students_excluding_zeros) * 100
+    print(f"Scenario B (Excludes Zeros) Failure Rate : {failure_rate_b:.2f}%")
+
+    # --- M4 Task 3: Compare Academic Groups ---
+    print("\n" + "="*20 + " Group Mean Comparisons " + "="*20)
     
-    print(X[idx, G1])      # their G1 grades
-    print(X[idx, G2])      # their G2 grades
+    masks = {
+        "Zero Grade Group": zero_grade,
+        "Nonzero Failure Group": nonzero_failure,
+        "Passed Group": passed,
+    }
+
+    for name, mask in masks.items():
+        print(f"[{name}]")
+        print(f"  G1 Mean        : {X[mask, G1].mean():.2f}")
+        print(f"  Studytime Mean : {X[mask, STUDYTIME].mean():.2f}")
+        print(f"  Failures Mean  : {X[mask, FAILURES].mean():.2f}")
+        print(f"  Absences Mean  : {X[mask, ABSENCES].mean():.2f}")
+        print("-" * 30)
 
 
-    
-    unique_studytimes = np.unique(X[:,STUDYTIME])
-    for st in unique_studytimes:
-        mask = (X[:,STUDYTIME] == st)
-
-        mean_g3 = X[mask,G3].mean()
-
-        print(f"Studytime: {st}, G3 mean : {mean_g3:.4f}")
-              
-    print(f"Pandas groupby Check: ")
-    studytime_g3_mean = data.groupby("studytime")["G3"].mean()
-    print(studytime_g3_mean)
-
-    mask1=X[:,FAILURES] == 0
-    failures_equal_zero_mean = X[mask1,G3].mean()
-    print(failures_equal_zero_mean)
-
-    mask2=X[:,FAILURES] >= 1
-    failures_at_least_one_mean = X[mask2,G3].mean()
-    print(failures_at_least_one_mean)
-
-    
-
-    highest_G3=X[:,G3].max()
-    highest_indices=np.where(X[:,G3] == highest_G3)[0]
-    count_highest= len(highest_indices)
-    print(f"The highest value is: {highest_G3}")
-    print(f"It appears {count_highest} time(s) at indices: {highest_indices}")
-
-
-
-
-
-
-
-
-
-
-if __name__=="__main__":
+if __name__ == "__main__":
     main()
-
-
 
 
 
